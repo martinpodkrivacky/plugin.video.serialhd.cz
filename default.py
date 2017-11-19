@@ -39,6 +39,8 @@ if params=={}:
     xbmcutil.init_usage_reporting( __scriptid__)
 provider = serialhd.serialhdContentProvider()
 provider.strict_search = __addon__.getSetting('strict-search') == 'true'
+provider.loginusername = __addon__.getSetting('username')
+provider.loginpassword = __addon__.getSetting('password')
 
 class serialhdXBMContentProvider(xbmcprovider.XBMCMultiResolverContentProvider):
 
