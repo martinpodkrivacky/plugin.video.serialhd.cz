@@ -3,6 +3,10 @@ Doplnok pre Serialhd.cz
 
 @Martin Podkrivacky
 
+1.0.1: 2 oficiálna verzia
+
+1.0.0: 1 oficiálna verzia
+
 0.9.7: 4 Testovacia verzia
 
 0.9.6: 4 Testovacia verzia
