@@ -21,6 +21,7 @@
 
 import re,os,urllib,urllib2,shutil,traceback,cookielib,HTMLParser
 import util,resolver
+import hashlib
 from urllib import quote_plus
 from provider import ContentProvider, cached
 
@@ -29,7 +30,7 @@ HDRS = {"User-Agent": "SerialHDKodi"}
 class serialhdContentProvider(ContentProvider):
 
     def __init__(self,username=None,password=None,filter=None):
-        ContentProvider.__init__(self,'serialhd.cz','https://kodi.serialhd.cz/096',username,password,filter)
+        ContentProvider.__init__(self,'serialhd.cz','https://kodi.serialhd.cz/098',username,password,filter)
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
         urllib2.install_opener(opener)
         self.order_by = ''
@@ -38,8 +39,10 @@ class serialhdContentProvider(ContentProvider):
         return ['categories','resolve','search']
 
     def search(self,keyword):
+        m = hashlib.md5()
+        m.update(self.loginpassword)
         keyword = urllib.quote_plus(keyword)
-        return self.list_serialy(util.request(self._url('serialy_search.php?q='+keyword)))
+        return self.list_serialy(util.request(self._url('serialy_search.php?q='+keyword+'&username='+self.loginusername+'&password='+m.hexdigest())))
 
     def list(self,url):
         if url.find('#cat#') == 0:
@@ -63,6 +66,8 @@ class serialhdContentProvider(ContentProvider):
         return self.list_serialy(util.request(self._url(url)))
 	
     def categories(self):
+        m = hashlib.md5()
+        m.update(self.loginpassword)
         result = []
         item = self.dir_item()
         item['title'] = 'Všechny seriály'
@@ -79,46 +84,52 @@ class serialhdContentProvider(ContentProvider):
         return result
 	
     def categories_vsechnyserialy(self):
+        m = hashlib.md5()
+        m.update(self.loginpassword)
         result = []
         item = self.dir_item()
         item['title'] = 'Seřazené abecedně'
-        item['url'] = '#show#serialy_abecedne.php'
+        item['url'] = '#show#serialy_abecedne.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         item = self.dir_item()
         item['title'] = 'Nejsledovanější'
-        item['url'] = '#show#serialy_nejsledovanejsi.php'
+        item['url'] = '#show#serialy_nejsledovanejsi.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         item = self.dir_item()
         item['title'] = 'Podle hodnocení'
-        item['url'] = '#show#serialy_hodnoceni.php'
+        item['url'] = '#show#serialy_hodnoceni.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         item = self.dir_item()
         item['title'] = 'Poslední přidané'
-        item['url'] = '#show#serialy_posledneserialy.php'
+        item['url'] = '#show#serialy_posledneserialy.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         return result
 	
     def categories_filtrovatserialy(self):
+        m = hashlib.md5()
+        m.update(self.loginpassword)
         result = []
         item = self.dir_item()
         item['title'] = 'Podle žánru'
-        item['url'] = '#cat#serialy_zanre.php'
+        item['url'] = '#cat#serialy_zanre.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         item = self.dir_item()
         item['title'] = 'Podle roku'
-        item['url'] = '#cat#serialy_roky.php'
+        item['url'] = '#cat#serialy_roky.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         item = self.dir_item()
         item['title'] = 'Podle začátečního písmena'
-        item['url'] = '#cat#serialy_pismena.php'
+        item['url'] = '#cat#serialy_pismena.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         return result
 	
     def categories_ostatnezoradenie(self):
+        m = hashlib.md5()
+        m.update(self.loginpassword)
         result = []
         item = self.dir_item()
         item['title'] = 'Zobrazit poslední přidané epizody'
-        item['url'] = '#epizody#serialy_posledneepizody.php'
+        item['url'] = '#epizody#serialy_posledneepizody.php?username='+self.loginusername+'&password='+m.hexdigest()
         result.append(item)
         return result
 
