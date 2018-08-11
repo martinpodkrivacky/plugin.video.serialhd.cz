@@ -26,7 +26,7 @@ import xbmcprovider,xbmcaddon,xbmcutil,xbmc,utmain
 import util
 import traceback,urllib2
 
-__scriptid__   = 'plugin.video.serialhdfilm.cz'
+__scriptid__   = 'plugin.video.serialhd.cz'
 __scriptname__ = 'SerialHD HDFilm'
 __addon__      = xbmcaddon.Addon(id=__scriptid__)
 __language__   = __addon__.getLocalizedString
