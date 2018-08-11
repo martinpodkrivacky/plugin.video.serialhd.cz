@@ -22,6 +22,7 @@
 import re,os,urllib,urllib2,shutil,traceback,cookielib,HTMLParser
 import util,resolver
 import hashlib
+import json
 from urllib import quote_plus
 from provider import ContentProvider, cached
 
@@ -30,7 +31,7 @@ HDRS = {"User-Agent": "SerialHDKodi"}
 class serialhdContentProvider(ContentProvider):
 
     def __init__(self,username=None,password=None,filter=None):
-        ContentProvider.__init__(self,'serialhd.cz','https://kodi.serialhd.cz/098',username,password,filter)
+        ContentProvider.__init__(self,'serialhd.cz','http://kodi.serialhd.cz/final',username,password,filter)
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar()))
         urllib2.install_opener(opener)
         self.order_by = ''
@@ -42,154 +43,57 @@ class serialhdContentProvider(ContentProvider):
         m = hashlib.md5()
         m.update(self.loginpassword)
         keyword = urllib.quote_plus(keyword)
-        return self.list_serialy(util.request(self._url('serialy_search.php?q='+keyword+'&username='+self.loginusername+'&password='+m.hexdigest())))
+        return self.load_json_items(util.request(self._url('listings.php?type=search&q='+keyword)))
 
     def list(self,url):
-        if url.find('#cat#') == 0:
-            url = url[5:]
-            return self._categories(util.request(self._url(url)),'yes')
-        if url.find('#epizody#') == 0:
-            url = url[9:]
-            return self.video_epizody(util.request(self._url(url)),url)
-        if url.find('#serie#') == 0:
-            url = url[7:]
-            return self.video_serie(util.request(self._url(url)))
-        if url.find('#show#') == 0:
-            url = url[6:]
-            return self.list_serialy(util.request(self._url(url)))
-        if url.find('#vsechnyserialy#') == 0:
-            return self.categories_vsechnyserialy()
-        if url.find('#filtrovatserialy#') == 0:
-            return self.categories_filtrovatserialy()
-        if url.find('#ostatnezoradenie#') == 0:
-            return self.categories_ostatnezoradenie()
-        return self.list_serialy(util.request(self._url(url)))
+        if url.find('#listitems#') == 0:
+            url = url[11:]
+            return self.load_json_items(util.request(self._url(url)))
+        if url.find('#jsonlist#') == 0:
+            url = url[10:]
+            return self.load_json_items(util.request(self._url(url)))
+        return self.load_json_items(util.request(self._url(url)))
 	
     def categories(self):
+        return self.load_json_items(util.request(self._url('hlavniMenuDoplnekKombinovany.json')))
+
+    def load_json_items(self,page):
         m = hashlib.md5()
         m.update(self.loginpassword)
         result = []
-        item = self.dir_item()
-        item['title'] = 'Všechny seriály'
-        item['url'] = '#vsechnyserialy#'
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Filtrovat seriály'
-        item['url'] = '#filtrovatserialy#'
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Ostatní seřazení'
-        item['url'] = '#ostatnezoradenie#'
-        result.append(item)
-        return result
-	
-    def categories_vsechnyserialy(self):
-        m = hashlib.md5()
-        m.update(self.loginpassword)
-        result = []
-        item = self.dir_item()
-        item['title'] = 'Seřazené abecedně'
-        item['url'] = '#show#serialy_abecedne.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Nejsledovanější'
-        item['url'] = '#show#serialy_nejsledovanejsi.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Podle hodnocení'
-        item['url'] = '#show#serialy_hodnoceni.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Poslední přidané'
-        item['url'] = '#show#serialy_posledneserialy.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        return result
-	
-    def categories_filtrovatserialy(self):
-        m = hashlib.md5()
-        m.update(self.loginpassword)
-        result = []
-        item = self.dir_item()
-        item['title'] = 'Podle žánru'
-        item['url'] = '#cat#serialy_zanre.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Podle roku'
-        item['url'] = '#cat#serialy_roky.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        item = self.dir_item()
-        item['title'] = 'Podle začátečního písmena'
-        item['url'] = '#cat#serialy_pismena.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        return result
-	
-    def categories_ostatnezoradenie(self):
-        m = hashlib.md5()
-        m.update(self.loginpassword)
-        result = []
-        item = self.dir_item()
-        item['title'] = 'Zobrazit poslední přidané epizody'
-        item['url'] = '#epizody#serialy_posledneepizody.php?username='+self.loginusername+'&password='+m.hexdigest()
-        result.append(item)
-        return result
-
-    def video_serie(self,page):
-        data = util.substr(page,'----start----','----end----')
-        result = []
-        for m in re.finditer('----startserial---->>>URL:(?P<url>[^"]*?)>>>NAME:(?P<name>[^"]*?)----endserial----',data,re.IGNORECASE|re.DOTALL):
-            item = self.dir_item()
-            item['url'] = '#epizody#' + m.group('url')
-            item['title'] = m.group('name')
-            self._filter(result,item)
-        return result
-
-    def video_epizody(self,page,url):
-		result = []
-		page = util.substr(page,'----start----','----end----')
-		for m in re.finditer('----startserial---->>>URL:(?P<url>[^"]*?)>>>NAME:(?P<name>[^"]*?)>>>YEAR:(?P<year>[^"]*?)>>>INFO:(?P<plot>[^"]*?)>>>SERIE:(?P<season>[^"]*?)>>>SUBS:(?P<subs>[^"]*?)>>>EPIZODA:(?P<episode>[^"]*?)>>>IMG:(?P<img>[^"]*?)----endserial----',page,re.IGNORECASE|re.DOTALL):
-			item = self.video_item()
-			item['title'] = m.group('name')
-			item['season'] = m.group('season')
-			item['episode'] = m.group('episode')
-			item['plot'] = m.group('plot')
-			item['img'] = self._url(m.group('img'))
-			item['subs'] = self._url(m.group('subs'))
-			item['url'] = self._url(m.group('url'))
-			if self.strict_search:
-				item['year'] = m.group('year')
-			result.append(item)
-		return result
-
-    def list_serialy(self,page):
-        page = util.substr(page,'----start----','----end----')
-        result = []
-        for m in re.finditer('----startserial---->>>URL:(?P<url>[^"]*?)>>>NAME:(?P<name>[^"]*?)>>>INFO:(?P<plot>[^"]*?)>>>IMG:(?P<img>[^"]*?)----endserial----',page,re.IGNORECASE|re.DOTALL):
-            item = self.dir_item()
-            item['url'] = '#serie#' + m.group('url')
-            item['img'] = self._url(m.group('img'))
-            item['plot'] = m.group('plot')
-            item['title'] = m.group('name')
-            self._filter(result,item)
-        return result
-
-    @cached()
-    def _categories(self,data,pistala):
-        data = util.substr(data,'----start----','----end----')
-        result = []
-        for m in re.finditer('----startserial---->>>URL:(?P<url>[^"]*?)>>>NAME:(?P<name>[^"]*?)----endserial----',data,re.IGNORECASE|re.DOTALL):
-            item = self.dir_item()
-            item['url'] = '#show#' + m.group('url')
-            item['title'] = m.group('name')
-            self._filter(result,item)
+        page = page.replace("YOURUSERNAME", self.loginusername)
+        page = page.replace("YOURPASSWORD", m.hexdigest())
+        json_video_array = json.loads(page)
+        for item_properties in json_video_array:
+            if item_properties['type'] == 'video':
+				item = self.video_item()
+				item['title'] = item_properties['title']
+				item['genre'] = item_properties['genre']
+				item['fileextension'] = item_properties['fileextension']
+				item['img'] = item_properties['img']
+				item['fanart'] = item_properties['backdrop']
+				item['codec'] = item_properties['codec']
+				item['url'] = item_properties['url']
+				item['lang'] = item_properties['lang']
+				item['quality'] = item_properties['quality']
+				item['plot'] = item_properties['plot']
+				item['year'] = int(item_properties['year'])
+            else:
+				item = self.dir_item()
+				item['title'] = item_properties['title']
+				item['url'] = item_properties['url']
+				if 'img' in item_properties and item_properties['img'] is not None:
+					item['img'] = item_properties['img']
+				if 'plot' in item_properties and item_properties['plot'] is not None:
+					item['plot'] = item_properties['plot']
+				if 'year' in item_properties and item_properties['year'] is not None:
+					item['year'] = int(item_properties['year'])
+            result.append(item)
         return result
 
     def resolve(self,item,captcha_cb=None,select_cb=None):
         item = item.copy()
-        url = self._url(item['url'])
         data = util.request(self._url(item['url']))	
-        data = util.substr(data,'----start----','----end----')
-        result = self.findstreams(data,['----startserial---->>>VIDEO:(?P<url>[^"]*?)>>>TITULKY:(?P<subs>[^"]*?)----endserial----'])
-        if len(result)==1:
-            return result[0]
-        elif len(result) > 1 and select_cb:
-            return result[0]
+        data = util.substr(data,'[',']')
+        result = self.findstreams(data,['{"url":"(?P<url>[^"]*?)"}'])
+        return result[0]
